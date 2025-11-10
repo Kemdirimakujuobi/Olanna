@@ -14,6 +14,7 @@ export type SentimentSeries = {
 
 type CallsSentimentChartProps = {
   data: SentimentSeries[];
+  yMax?: number;
 };
 
 const tooltipContainerStyle: CSSProperties = {
@@ -27,7 +28,7 @@ const tooltipContainerStyle: CSSProperties = {
 
 const formatter = new Intl.NumberFormat('en-US');
 
-const CallsSentimentChart = ({ data }: CallsSentimentChartProps) => {
+const CallsSentimentChart = ({ data, yMax = 820_000 }: CallsSentimentChartProps) => {
   const theme = useMemo(
     () => ({
       background: '#fcfcfc',
@@ -106,7 +107,7 @@ const CallsSentimentChart = ({ data }: CallsSentimentChartProps) => {
         )}
         theme={theme}
         xScale={{ type: 'point' }}
-        yScale={{ type: 'linear', min: 0, max: 820_000, stacked: false }}
+        yScale={{ type: 'linear', min: 0, max: yMax, stacked: false }}
         axisBottom={{
           tickSize: 0,
           tickPadding: 16,

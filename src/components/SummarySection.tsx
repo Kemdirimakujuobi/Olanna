@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 type SummarySectionProps = {
   text: string;
@@ -6,15 +6,43 @@ type SummarySectionProps = {
 
 const SummarySection = ({ text }: SummarySectionProps) => {
   return (
-    <section className="mx-6 rounded-xl bg-[#f6f6f6] px-4 py-5">
-      <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
-        <span className="flex size-6 items-center justify-center rounded-full bg-accent-blue/10 text-accent-blue">
-          <Sparkles className="size-3.5" strokeWidth={2} />
+    <div className="flex items-start gap-3 rounded-[6px] py-2">
+      <span className="mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center text-text-secondary">
+        <Loader2 aria-hidden className="size-4" strokeWidth={2} />
+      </span>
+
+      <div className="flex flex-col gap-2">
+        <span
+          className="text-sm font-medium"
+          style={{
+            color: 'var(--grayscale-950, #0A0A0A)',
+            fontFamily: 'var(--Body-fontFamily, Inter)',
+            fontSize: 'var(--Body-fontSize, 14px)',
+            fontStyle: 'normal',
+            fontWeight: 'var(--Weights-Medium, 500)',
+            lineHeight: 'var(--Body-lineHeight, 20px)',
+            letterSpacing: 'var(--Body-letterSpacing, 0)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          Summary
         </span>
-        Summary
+        <p
+          style={{
+            color: 'var(--grayscale-500, #737373)',
+            fontFamily: 'var(--Body-fontFamily, Inter)',
+            fontSize: 'var(--Body-fontSize, 14px)',
+            fontStyle: 'normal',
+            fontWeight: 'var(--Weights-Regular, 400)',
+            lineHeight: 'var(--Body-lineHeight, 20px)',
+            letterSpacing: 'var(--Body-letterSpacing, 0)',
+          }}
+        >
+          {text}
+        </p>
       </div>
-      <p className="mt-3 text-sm leading-6 text-text-secondary">{text}</p>
-    </section>
+    </div>
   );
 };
 

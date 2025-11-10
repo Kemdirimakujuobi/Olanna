@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 
 import InputBar from './components/InputBar';
 import NavBar from './components/NavBar';
-import ResponseCard, { type ResponseCardData } from './components/ResponseCard';
+import ResponseCard from './components/ResponseCard';
 import ScrollableContent from './components/ScrollableContent';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import UserMessageBubble from './components/UserMessageBubble';
-import type { SentimentSeries } from './components/CallsSentimentChart';
+import type {
+  InsightChartPayload,
+  InsightFollowUp,
+  InsightResponse,
+  InsightSummaryPayload,
+} from './types/insights';
 
 type Message =
   | { id: string; type: 'user'; text: string }
   | { id: string; type: 'thinking' }
-  | { id: string; type: 'bot'; data: ResponseCardData };
+  | { id: string; type: 'bot'; data: InsightResponse };
 
 const THINK_DELAY = 900;
 
@@ -82,23 +87,20 @@ const RESPONSE_TEMPLATES: ResponseTemplate[] = [
 
 const jitterSeries = (series: number[]) => series.map((value) => Math.max(0, Math.round(value * (0.97 + Math.random() * 0.06))));
 
-const buildSeries = (values: number[], id: string, color: string): SentimentSeries => ({
-  id,
-  color,
-  data: months.map((month, index) => ({ x: month, y: values[index] })),
-});
-
-const buildResponseData = (template: ResponseTemplate): ResponseCardData => {
+const buildChartData = (template: ResponseTemplate): InsightChartPayload => {
   const positiveSeries = jitterSeries(template.positiveSeries);
   const negativeSeries = jitterSeries(template.negativeSeries);
+
+  const maxValue = Math.max(...positiveSeries, ...negativeSeries);
+  const yMax = Math.ceil(maxValue * 1.1 / 10_000) * 10_000;
 
   const positiveTotal = Math.round(template.positiveTotal * (0.97 + Math.random() * 0.06));
   const negativeTotal = Math.round(template.negativeTotal * (0.97 + Math.random() * 0.06));
   const neutralTotal = Math.round(template.neutralTotal * (0.97 + Math.random() * 0.06));
 
   return {
+    type: 'line',
     totalCalls: positiveTotal + negativeTotal + neutralTotal,
-    chart: [buildSeries(positiveSeries, 'Positive', '#1a88f8'), buildSeries(negativeSeries, 'Negative', '#ff1c1c')],
     sentiment: {
       positive: positiveTotal,
       negative: negativeTotal,
@@ -110,10 +112,36 @@ const buildResponseData = (template: ResponseTemplate): ResponseCardData => {
       { label: 'Positive', value: positiveTotal, color: '#1a88f8' },
       { label: 'Negative', value: negativeTotal, color: '#ff1c1c' },
     ],
-    summary: template.summary,
-    followUps: template.followUps.map((question, index) => ({ id: `${index}`, question })),
+    yMax,
+    series: [
+      {
+        id: 'Positive',
+        color: '#1a88f8',
+        points: months.map((month, index) => ({
+          period: month,
+          value: positiveSeries[index],
+        })),
+      },
+      {
+        id: 'Negative',
+        color: '#ff1c1c',
+        points: months.map((month, index) => ({
+          period: month,
+          value: negativeSeries[index],
+        })),
+      },
+    ],
   };
 };
+
+const buildSummaryData = (template: ResponseTemplate): InsightSummaryPayload => {
+  return {
+    text: template.summary,
+  };
+};
+
+const buildFollowUps = (template: ResponseTemplate): InsightFollowUp[] =>
+  template.followUps.map((question, index) => ({ id: `${index}`, question }));
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -121,6 +149,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const responseCursor = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const summaryTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const idRef = useRef(0);
 
   const createId = () => {
@@ -133,13 +162,19 @@ function App() {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      Object.values(summaryTimersRef.current).forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+      });
     };
   }, []);
 
   const enqueueResponse = () => {
     const template = RESPONSE_TEMPLATES[responseCursor.current % RESPONSE_TEMPLATES.length];
     responseCursor.current += 1;
-    return buildResponseData(template);
+    const chart = buildChartData(template);
+    const summary = buildSummaryData(template);
+    const followUps = buildFollowUps(template);
+    return { chart, summary, followUps };
   };
 
   const handleSubmit = (raw: string) => {
@@ -161,11 +196,39 @@ function App() {
 
     timerRef.current = setTimeout(() => {
       const data = enqueueResponse();
+      const botMessageId = createId();
       setMessages((prev) => {
         const withoutThinking = prev.filter((message) => message.id !== thinkingId);
-        return [...withoutThinking, { id: createId(), type: 'bot', data }];
+        const initialInsight: InsightResponse = {
+          chart: { status: 'ready', data: data.chart },
+          summary: { status: 'loading' },
+          followUps: { status: 'loading' },
+        };
+        return [...withoutThinking, { id: botMessageId, type: 'bot', data: initialInsight }];
       });
       setIsLoading(false);
+
+      const summaryTimer = setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((message) => {
+            if (message.id !== botMessageId || message.type !== 'bot') {
+              return message;
+            }
+
+            return {
+              ...message,
+              data: {
+                chart: message.data.chart,
+                summary: { status: 'ready', data: data.summary },
+                followUps: { status: 'ready', data: data.followUps },
+              },
+            };
+          })
+        );
+        delete summaryTimersRef.current[botMessageId];
+      }, 600);
+
+      summaryTimersRef.current[botMessageId] = summaryTimer;
     }, THINK_DELAY);
   };
 

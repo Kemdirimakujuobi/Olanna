@@ -19,3 +19,27 @@
     @apply m-0 bg-background-surface font-sans text-text-primary antialiased;
   }
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+@layer utilities {
+  .text-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      rgba(39, 39, 42, 0.2),
+      rgba(82, 82, 91, 0.95),
+      rgba(113, 113, 122, 0.95),
+      rgba(212, 212, 216, 0.25)
+    );
+    background-size: 200% auto;
+    @apply bg-clip-text text-transparent;
+    animation: shimmer 2.25s linear infinite;
+  }
+}
